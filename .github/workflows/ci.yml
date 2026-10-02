@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build
+      - run: swift test
+
+  release:
+    name: Release
+    # Only when a version tag is pushed.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: macos-26
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build universal binary
+        run: |
+          swift build -c release --arch arm64 --arch x86_64
+          BIN=$(swift build -c release --show-bin-path)
+          mkdir -p dist
+          cp "$BIN/pdf-ocr" dist/pdf-ocr
+          lipo -archs dist/pdf-ocr
+          tar -czf pdf-ocr-macos-universal.tar.gz -C dist pdf-ocr
+          rm -rf dist
+
+      - name: Bundle the app
+        run: |
+          swift build -c release --product PDFOCR
+          BIN=$(swift build -c release --show-bin-path)
+          mkdir -p PDFOCR.app/Contents/MacOS
+          cp "$BIN/PDFOCR" PDFOCR.app/Contents/MacOS/PDFOCR
+          cp Resources/Info.plist PDFOCR.app/Contents/Info.plist
+          # Ad-hoc signature, which is enough to run locally. Handing it to
+          # other machines needs a Developer ID and notarisation, which needs
+          # a paid Apple account.
+          codesign --force --deep --sign - PDFOCR.app
+          tar -czf PDFOCR-macos.zip PDFOCR.app
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            pdf-ocr-macos-universal.tar.gz
+            PDFOCR-macos.zip
+          generate_release_notes: true

@@ -6,3 +6,7 @@
 DerivedData/
 dist/
 *.dSYM
+# local release artefacts
+/dist/
+PDFOCR.app/
+*.tar.gz
