@@ -1,12 +1,12 @@
 import CoreGraphics
 import Foundation
-import PDFKit
 
 public enum OCRError: Error, CustomStringConvertible {
     case cannotOpenPDF(URL)
     case noPages(URL)
     case cannotCreateOutput(URL)
     case cannotCreateContext
+    case cancelled
 
     public var description: String {
         switch self {
@@ -14,6 +14,7 @@ public enum OCRError: Error, CustomStringConvertible {
         case .noPages(let url): "'\(url.lastPathComponent)' has no pages"
         case .cannotCreateOutput(let url): "cannot write '\(url.lastPathComponent)'"
         case .cannotCreateContext: "cannot create a PDF context"
+        case .cancelled: "cancelled"
         }
     }
 }
@@ -31,6 +32,7 @@ public struct OCRReport: Sendable {
     public var unmappedCharacters = 0
     public var averageConfidence: Float = 0
     public var duration: TimeInterval = 0
+    public var cancelled = false
     /// Non-fatal things worth telling the user about.
     public var warnings: [String] = []
 
@@ -55,7 +57,9 @@ public enum OCRRun {
         input: URL,
         output: URL,
         options: OCROptions = OCROptions(),
-        progress: (OCRProgress) -> Void = { _ in }
+        preScan: DocumentInfo,
+        progress: @Sendable (OCRProgress) -> Void = { _ in },
+        shouldCancel: @Sendable () -> Bool = { false }
     ) throws -> OCRReport {
         let started = Date()
         var report = OCRReport(input: input, output: output)
@@ -67,13 +71,14 @@ public enum OCRRun {
         report.totalPages = pageCount
         guard pageCount > 0 else { throw OCRError.noPages(input) }
 
+        // The caller reads the page facts with PDFKit on the main thread and
+        // passes them in; everything below is pure CoreGraphics and safe on
+        // any thread.
         let selection = options.pageSelection.clamped(to: pageCount)
         // Asking for a replacement implies "process these pages too".
         let skipUntouched = options.skipPagesWithText && !options.replaceExistingText
-        let existingText = (skipUntouched || options.replaceExistingText)
-            ? pagesWithText(in: input)
-            : []
-        let rotations = pageRotations(in: input)
+        let existingText = (skipUntouched || options.replaceExistingText) ? preScan.pagesWithText : []
+        let rotations = preScan.rotations
 
         try? FileManager.default.createDirectory(
             at: output.deletingLastPathComponent(),
@@ -93,6 +98,7 @@ public enum OCRRun {
         var textDump: [String] = []
 
         for index in 1...pageCount {
+            if shouldCancel() { break }
             guard let page = document.page(at: index) else { continue }
 
             let mediaBox = page.getBoxRect(.mediaBox)
@@ -173,6 +179,7 @@ public enum OCRRun {
         }
 
         context.closePDF()
+        report.cancelled = shouldCancel()
         report.averageConfidence = report.confidenceSamples > 0
             ? report.confidenceTotal / Float(report.confidenceSamples)
             : 0
@@ -205,31 +212,6 @@ public enum OCRRun {
         }
 
         return report
-    }
-
-    /// 1-based page numbers that already carry extractable text.
-    static func pagesWithText(in url: URL) -> Set<Int> {
-        guard let document = PDFDocument(url: url) else { return [] }
-        var found = Set<Int>()
-        for index in 0..<document.pageCount {
-            if let text = document.page(at: index)?.string,
-               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                found.insert(index + 1)
-            }
-        }
-        return found
-    }
-
-    /// 1-based page number to `/Rotate` angle, normalized to 0/90/180/270.
-    static func pageRotations(in url: URL) -> [Int: Int] {
-        guard let document = PDFDocument(url: url) else { return [:] }
-        var rotations: [Int: Int] = [:]
-        for index in 0..<document.pageCount {
-            guard let page = document.page(at: index) else { continue }
-            let angle = page.rotation
-            if angle != 0 { rotations[index + 1] = ((angle % 360) + 360) % 360 }
-        }
-        return rotations
     }
 
     private static func summarize(_ pages: [Int]) -> String {

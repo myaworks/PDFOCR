@@ -16,7 +16,7 @@ public enum PageSelectionError: Error, CustomStringConvertible {
 
 /// Which 1-based pages to process. Accepts `1-10, 15, 20-`; an open upper bound is
 /// stored as `Int.max` and clamped against the real page count when used.
-public enum PageSelection: Sendable, Equatable {
+public enum PageSelection: Sendable, Equatable, Codable {
     case all
     case ranges([ClosedRange<Int>])
 

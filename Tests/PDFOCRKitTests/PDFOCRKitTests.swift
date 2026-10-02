@@ -33,6 +33,7 @@ struct InvisibleTextLayerTests {
     }
 
     @Test("a scanned page comes back selectable, ligature-free and positioned")
+    @MainActor
     func roundTrip() throws {
         let source = try Sample.scan(pages: 1, lines: [
             ("defines sufficient", CGRect(x: 0.12, y: 0.90, width: 0.42, height: 0.016)),
@@ -44,7 +45,8 @@ struct InvisibleTextLayerTests {
             .appendingPathComponent("roundtrip-out.pdf")
         defer { try? FileManager.default.removeItem(at: output) }
 
-        let report = try OCRRun.run(input: source, output: output, options: OCROptions())
+        let scan = try #require(PDFInspector.info(for: source))
+        let report = try OCRRun.run(input: source, output: output, options: OCROptions(), preScan: scan)
         #expect(report.processedPages == [1])
         #expect(report.linesRecognized == 2)
 
@@ -61,6 +63,17 @@ struct InvisibleTextLayerTests {
         // The scan itself must survive untouched.
         let bounds = page.bounds(for: .mediaBox)
         #expect(bounds.width > 0 && bounds.height > 0)
+    }
+
+    @Test("the default output sits next to the source, not inside a folder named after it")
+    func defaultOutputNaming() {
+        let source = URL(fileURLWithPath: "/Users/tcetin/Documents/scan-33061.pdf")
+        let output = source.appendingOCRSuffix()
+        #expect(output.path == "/Users/tcetin/Documents/scan-33061-ocr.pdf")
+        #expect(output.deletingLastPathComponent() == source.deletingLastPathComponent())
+
+        let mixedCase = URL(fileURLWithPath: "/tmp/reports/2026.TETKİK.PDF")
+        #expect(mixedCase.appendingOCRSuffix().path == "/tmp/reports/2026.TETKİK-ocr.PDF")
     }
 
     @Test("page ranges parse and clamp")

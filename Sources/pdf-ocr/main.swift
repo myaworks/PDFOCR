@@ -164,9 +164,7 @@ for path in inputs {
             fail("--output must be a directory when several PDFs are given")
         }
     } else {
-        target = source.deletingPathExtension()
-            .appendingPathComponent(source.deletingPathExtension().lastPathComponent + "-ocr")
-            .appendingPathExtension("pdf")
+        target = source.appendingOCRSuffix()
     }
 
     if FileManager.default.fileExists(atPath: target.path), !force {
@@ -175,7 +173,18 @@ for path in inputs {
 
     do {
         let isQuiet = quiet
-        let report = try OCRRun.run(input: source, output: target, options: options) { progress in
+        // PDFKit reads have to happen on the main thread, so the page facts are
+        // gathered here and handed to the pipeline.
+        guard let scan = PDFInspector.info(for: source) else {
+            fail("'\(source.lastPathComponent)' okunamadı (parola korumalı olabilir)")
+        }
+
+        let report = try OCRRun.run(
+            input: source,
+            output: target,
+            options: options,
+            preScan: scan
+        ) { progress in
             guard !isQuiet else { return }
             let bar = Int(progress.fraction * 24)
             let filled = String(repeating: "#", count: bar)

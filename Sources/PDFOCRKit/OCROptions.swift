@@ -32,7 +32,7 @@ public enum BaseFont: String, Sendable, CaseIterable, Codable {
     }
 }
 
-public enum FontSizeMode: Sendable, Equatable {
+public enum FontSizeMode: Sendable, Hashable, Codable {
     /// Point size derived from each recognized line's box height.
     case matchBox
     /// Every line drawn at the same point size.
@@ -41,7 +41,7 @@ public enum FontSizeMode: Sendable, Equatable {
 
 /// Everything the pipeline can be told to do. The defaults are what you want for
 /// a clean 300 dpi scan of Latin-script text.
-public struct OCROptions: Sendable {
+public struct OCROptions: Sendable, Equatable, Codable {
     public var languages: [String] = ["en-US"]
     public var recognitionLevel: RecognitionLevel = .accurate
     public var dpi: Double = 300
