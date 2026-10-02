@@ -4,8 +4,8 @@
 *.xcodeproj
 *.xcworkspace
 DerivedData/
-dist/
 *.dSYM
+
 # local release artefacts
 /dist/
 PDFOCR.app/

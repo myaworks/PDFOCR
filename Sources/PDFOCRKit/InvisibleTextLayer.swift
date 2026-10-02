@@ -13,11 +13,24 @@ struct TextLayerStats {
 /// That is what makes a scanned page selectable and searchable while the scan
 /// underneath stays untouched.
 enum InvisibleTextLayer {
-    /// Pairs CoreText would fold into one glyph. A PDF base-14 encoding has no
-    /// code for the ﬁ/ﬀ/ﬂ characters, so a line that gets shaped as a whole ends
-    /// up in the file as an unsearchable ligature. Drawing the line in pieces
-    /// keeps every character a plain character.
-    private static let ligatures = ["ffi", "ffl", "ff", "fi", "fl", "ĳĳ"]
+        /// Characters that CoreText folds onto a preceding `f`. Which ones depends
+    /// on the font — the base-14 faces fold `fi`, `fl`, `ffi` and `ffl`, and
+    /// only some of them also fold a bare `ff` — so the union is used and the
+    /// runs are broken wherever any of them could apply.
+    private static let ligatureTails: Set<Character> = ["f", "i", "l", "t"]
+
+    /// Offsets, in Characters, where the attributed runs must break.
+    static func runBoundaries(in text: String) -> [Int] {
+        var boundaries: [Int] = []
+        var previous: Character?
+        for (offset, character) in text.enumerated() {
+            if previous == "f", ligatureTails.contains(character) {
+                boundaries.append(offset)
+            }
+            previous = character
+        }
+        return boundaries
+    }
 
     @discardableResult
     static func draw(
@@ -56,34 +69,24 @@ enum InvisibleTextLayer {
             let font = CTFontCreateWithName(fontName, pointSize, nil)
             stats.unmappedCharacters += unmappedCharacters(in: line.text, font: font)
 
-            let pieces = split(line.text).map { CTLineCreateWithAttributedString(
-                CFAttributedStringCreate(nil, $0 as CFString, [kCTFontAttributeName: font] as CFDictionary)!
-            ) }
+            let ctLine = CTLineCreateWithAttributedString(
+                attributedString(for: line.text, size: pointSize, fontName: fontName)
+            )
 
-            var total: CGFloat = 0
-            for piece in pieces {
-                var advance: CGFloat = 0
-                CTLineGetTypographicBounds(piece, nil, nil, &advance)
-                total += advance
-            }
+            var advance: CGFloat = 0
+            CTLineGetTypographicBounds(ctLine, nil, nil, &advance)
 
             var squeeze: CGFloat = 1
-            if options.squeezeLines, total > 0 {
+            if options.squeezeLines, advance > 0 {
                 let target = CGFloat(line.box.width) * width
-                squeeze = min(max(target / total, 0.4), 2.5)
+                squeeze = min(max(target / advance, 0.4), 2.5)
             }
 
             let originX = CGFloat(line.box.minX) * width
             let baselineY = (CGFloat(line.box.minY) + CGFloat(line.box.height) * 0.80) * height
 
-            var cursor = originX
-            for piece in pieces {
-                var advance: CGFloat = 0
-                CTLineGetTypographicBounds(piece, nil, nil, &advance)
-                context.textMatrix = CGAffineTransform(a: squeeze, b: 0, c: 0, d: 1, tx: cursor, ty: baselineY)
-                CTLineDraw(piece, context)
-                cursor += advance * squeeze
-            }
+            context.textMatrix = CGAffineTransform(a: squeeze, b: 0, c: 0, d: 1, tx: originX, ty: baselineY)
+            CTLineDraw(ctLine, context)
             stats.lines += 1
         }
 
@@ -91,40 +94,51 @@ enum InvisibleTextLayer {
         return stats
     }
 
-    /// Breaks `text` at every ligature opportunity, so no piece can be folded.
-    static func split(_ text: String) -> [String] {
-        let characters = Array(text)
-        var pieces: [String] = []
-        var current = ""
-        var index = 0
-
-        while index < characters.count {
-            var matched = ""
-            for ligature in ligatures where matchesAt(characters, ligature, at: index) {
-                if ligature.count > matched.count { matched = ligature }
-            }
-            if matched.isEmpty {
-                current.append(characters[index])
-                index += 1
-            } else {
-                if !current.isEmpty { pieces.append(current); current = "" }
-                // One character per piece: a piece that still held "fi" would
-                // just be folded again by CoreText.
-                for character in matched { pieces.append(String(character)) }
-                index += matched.count
-            }
+    /// One line, one text object, broken into attributed runs only where a
+    /// ligature would otherwise form.
+    ///
+    /// Drawing the pieces as separate lines instead would be simpler, but then
+    /// each piece carries its own side bearings with no kerning to absorb them;
+    /// a reader sees a gap and inserts a space, turning "defined" into
+    /// "de f i nes". Inside a single line CoreText emits the compensating
+    /// `TJ` adjustments and the word stays whole.
+    ///
+    /// The runs differ by a hundredth of a percent in point size, which is
+    /// invisible and just enough for CoreText to treat them as separate runs —
+    /// and adjacent runs never ligate.
+    private static func attributedString(
+        for text: String,
+        size: CGFloat,
+        fontName: CFString
+    ) -> NSAttributedString {
+        let boundaries = runBoundaries(in: text)
+        guard !boundaries.isEmpty else {
+            let font = CTFontCreateWithName(fontName, size, nil)
+            return NSAttributedString(
+                string: text,
+                attributes: [kCTFontAttributeName as NSAttributedString.Key: font]
+            )
         }
-        if !current.isEmpty { pieces.append(current) }
-        return pieces.isEmpty ? [text] : pieces
-    }
 
-    private static func matchesAt(_ characters: [Character], _ ligature: String, at index: Int) -> Bool {
-        let wanted = Array(ligature)
-        guard index + wanted.count <= characters.count else { return false }
-        for offset in wanted.indices where characters[index + offset] != wanted[offset] {
-            return false
+        let result = NSMutableAttributedString()
+        var cursor = 0
+        var run = 0
+        for boundary in boundaries + [text.count] {
+            let start = text.index(text.startIndex, offsetBy: cursor)
+            let end = text.index(text.startIndex, offsetBy: boundary)
+            let font = CTFontCreateWithName(
+                fontName,
+                run.isMultiple(of: 2) ? size : size * 1.0001,
+                nil
+            )
+            result.append(NSAttributedString(
+                string: String(text[start..<end]),
+                attributes: [kCTFontAttributeName as NSAttributedString.Key: font]
+            ))
+            cursor = boundary
+            run += 1
         }
-        return true
+        return result
     }
 
     /// Characters the font has no glyph for; they will not survive in the file.

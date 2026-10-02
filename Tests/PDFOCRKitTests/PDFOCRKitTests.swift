@@ -7,29 +7,16 @@ import Testing
 
 @Suite("Text layer")
 struct InvisibleTextLayerTests {
-    @Test("ligature opportunities are broken between characters")
-    func splitBreaksLigatures() {
-        // Each piece must be free of any ligature the shaper could fold, so no
-        // piece may contain two adjacent characters from an ff/fi/fl pair.
-        for word in ["defines", "sufficient", "fulfil", "classification", "office"] {
-            let pieces = InvisibleTextLayer.split(word)
-            #expect(pieces.joined() == word, "\(word) did not survive splitting")
-
-            for piece in pieces {
-                for pair in ["ffi", "ffl", "ff", "fi", "fl"] {
-                    #expect(
-                        !piece.contains(pair),
-                        "'\(word)' -> \(pieces) leaves '\(pair)' inside one piece"
-                    )
-                }
-            }
-        }
-    }
-
-    @Test("text without ligatures is left in one piece")
-    func splitKeepsPlainTextTogether() {
-        #expect(InvisibleTextLayer.split("Process outcomes") == ["Process outcomes"])
-        #expect(InvisibleTextLayer.split("") == [""])
+    @Test("ligature opportunities become run boundaries")
+    func ligatureBoundaries() {
+        // measured, not guessed: CoreText folds fi, fl, ffi and ffl, and with
+        // some fonts a bare ff as well
+        #expect(InvisibleTextLayer.runBoundaries(in: "defines") == [3])
+        #expect(InvisibleTextLayer.runBoundaries(in: "sufficient") == [3, 4])
+        #expect(InvisibleTextLayer.runBoundaries(in: "flour") == [1])
+        #expect(InvisibleTextLayer.runBoundaries(in: "office") == [2, 3])
+        #expect(InvisibleTextLayer.runBoundaries(in: "Process outcomes").isEmpty)
+        #expect(InvisibleTextLayer.runBoundaries(in: "").isEmpty)
     }
 
     @Test("a scanned page comes back selectable, ligature-free and positioned")
@@ -55,10 +42,22 @@ struct InvisibleTextLayerTests {
             return
         }
 
-        let text = page.string ?? ""
-        #expect(text.lowercased().contains("defines sufficient"))
-        #expect(!text.contains("\u{FB01}"), "fi was written as a ligature")
-        #expect(!text.contains("\u{FB02}"), "fl was written as a ligature")
+        let text = (page.string ?? "").lowercased()
+
+        // No /ActualText means CoreText never folded anything into a ligature,
+        // which is the only way a character can reach the file that a reader
+        // cannot search for. This assertion does not depend on the SDK's idea
+        // of what a word is, so it holds on any macOS version — unlike
+        // comparing extracted text, which is how the previous fix slipped
+        // through and then broke on another SDK.
+        let raw = String(decoding: try Data(contentsOf: output), as: UTF8.self)
+        #expect(!raw.contains("ActualText"), "a ligature was substituted into the text layer")
+
+        #expect(text.contains("defines sufficient"))
+        #expect(text.contains("fulfil specific classification"))
+        for ligature in ["\u{FB01}", "\u{FB02}", "\u{FB03}"] {
+            #expect(!text.contains(ligature), "ligature \(ligature) survived")
+        }
 
         // The scan itself must survive untouched.
         let bounds = page.bounds(for: .mediaBox)
