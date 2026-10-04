@@ -43,16 +43,8 @@ jobs:
 
       - name: Bundle the app
         run: |
-          swift build -c release --product PDFOCR
-          BIN=$(swift build -c release --show-bin-path)
-          mkdir -p PDFOCR.app/Contents/MacOS
-          cp "$BIN/PDFOCR" PDFOCR.app/Contents/MacOS/PDFOCR
-          cp Resources/Info.plist PDFOCR.app/Contents/Info.plist
-          # Ad-hoc signature, which is enough to run locally. Handing it to
-          # other machines needs a Developer ID and notarisation, which needs
-          # a paid Apple account.
-          codesign --force --deep --sign - PDFOCR.app
-          tar -czf PDFOCR-macos.zip PDFOCR.app
+          Scripts/build-app.sh --version "${GITHUB_REF_NAME#v}"
+          tar -czf PDFOCR-macos.zip -C dist PDFOCR.app
 
       - name: Publish
         uses: softprops/action-gh-release@v2

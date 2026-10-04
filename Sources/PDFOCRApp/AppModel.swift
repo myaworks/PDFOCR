@@ -169,9 +169,13 @@ final class AppModel {
                             output: target,
                             options: options,
                             preScan: scan,
+                            // The OCR runs off the main actor, so progress
+                            // hops back through the main queue. AppModel is
+                            // main-actor isolated, which makes it Sendable, so
+                            // capturing it here is fine.
                             progress: { progress in
-                                DispatchQueue.main.async { [weak self] in
-                                    self?.update(id: id, page: progress.page)
+                                DispatchQueue.main.async {
+                                    self.update(id: id, page: progress.page)
                                 }
                             },
                             shouldCancel: { Task.isCancelled }
@@ -257,5 +261,3 @@ final class AppModel {
         writePlainText = options.writePlainText
     }
 }
-
-extension FontSizeMode: Equatable {}

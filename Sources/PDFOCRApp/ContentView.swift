@@ -57,10 +57,12 @@ struct ContentView: View {
             }
         }
         .onOpenURL { model.add(urls: [$0]) }
-        .task { try? await Task.sleep(for: .seconds(3)); model.start() }
         .onAppear {
-            // also accept files given on the command line, e.g.
-            // `swift run PDFOCRApp ~/scans/report.pdf`
+            DocumentOpener.register { model.add(urls: $0) }
+
+            // Also accept files given on the command line, which is what
+            // happens when the bundle has no document types: `swift run
+            // PDFOCRApp ~/scans/report.pdf`
             let passed = CommandLine.arguments
                 .dropFirst()
                 .map { URL(fileURLWithPath: $0) }

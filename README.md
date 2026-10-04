@@ -24,6 +24,23 @@ cp .build/release/pdf-ocr /usr/local/bin/   # needs sudo, or any dir on PATH
 Or grab `pdf-ocr` from the [releases page](https://github.com/myaworks/PDFOCR/releases)
 and drop it somewhere on your PATH.
 
+### The app
+
+```sh
+Scripts/build-app.sh            # -> dist/PDFOCR.app, universal
+open dist/PDFOCR.app
+```
+
+SwiftPM builds a bare executable; a SwiftUI app needs the bundle around it
+before Finder will treat it as an app, which is all this script does. Pass
+`--arch arm64` for a faster single-architecture build, `--version 1.2.3` to
+stamp a version.
+
+Releases carry both: `PDFOCR-macos.zip` (the app) and a universal
+`pdf-ocr-macos-universal.tar.gz` (the CLI). The app is ad-hoc signed, which
+is enough to run it on the machine that built it — for other machines it
+needs a Developer ID and notarisation.
+
 ## Use
 
 ```sh

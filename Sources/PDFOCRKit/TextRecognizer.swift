@@ -25,12 +25,4 @@ public enum TextRecognizer {
             )
         }
     }
-
-    /// Languages Vision can actually read on this machine, for the GUI picker.
-    public static func supportedLanguages() -> [String] {
-        (try? VNRecognizeTextRequest.supportedRecognitionLanguages(
-            for: .accurate,
-            revision: VNRecognizeTextRequest.currentRevision
-        )) ?? ["en-US"]
-    }
 }
