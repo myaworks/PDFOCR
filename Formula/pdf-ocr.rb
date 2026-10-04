@@ -9,7 +9,7 @@ class PdfOcr < Formula
   homepage "https://github.com/myaworks/PDFOCR"
   url "https://github.com/myaworks/PDFOCR/releases/download/v1.2.0/pdf-ocr-macos-universal.tar.gz"
   version "1.2.0"
-  sha256 "d191f32c25059d8c970e6483e47fd290693eca2f103cf58b4d393a05541abf12"
+  sha256 "af376340747ac6fad0123ccc3294c81e67d05385c8ce0d9213586d047219f847"
   license "MIT"
 
   depends_on :macos
