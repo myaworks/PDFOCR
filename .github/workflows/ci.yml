@@ -31,25 +31,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build universal binary
-        run: |
-          swift build -c release --arch arm64 --arch x86_64
-          BIN=$(swift build -c release --show-bin-path)
-          mkdir -p dist
-          cp "$BIN/pdf-ocr" dist/pdf-ocr
-          lipo -archs dist/pdf-ocr
-          tar -czf pdf-ocr-macos-universal.tar.gz -C dist pdf-ocr
-          rm -rf dist
-
-      - name: Bundle the app
-        run: |
-          Scripts/build-app.sh --version "${GITHUB_REF_NAME#v}"
-          tar -czf PDFOCR-macos.zip -C dist PDFOCR.app
+      - name: Build and package
+        run: Scripts/build-release.sh --version "${GITHUB_REF_NAME#v}" --zip
 
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            pdf-ocr-macos-universal.tar.gz
-            PDFOCR-macos.zip
+            dist/pdf-ocr-macos-universal.tar.gz
+            dist/PDFOCR-macos.zip
           generate_release_notes: true

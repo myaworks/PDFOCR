@@ -27,14 +27,14 @@ and drop it somewhere on your PATH.
 ### The app
 
 ```sh
-Scripts/build-app.sh            # -> dist/PDFOCR.app, universal
+Scripts/build-release.sh          # -> dist/pdf-ocr and dist/PDFOCR.app
 open dist/PDFOCR.app
 ```
 
 SwiftPM builds a bare executable; a SwiftUI app needs the bundle around it
-before Finder will treat it as an app, which is all this script does. Pass
-`--arch arm64` for a faster single-architecture build, `--version 1.2.3` to
-stamp a version.
+before Finder will treat it as an app, and that is what the script assembles.
+Add `--zip` for the archives, `--arch arm64` for a faster single-architecture
+build, `--version 1.2.3` to stamp a version.
 
 Releases carry both: `PDFOCR-macos.zip` (the app) and a universal
 `pdf-ocr-macos-universal.tar.gz` (the CLI). The app is ad-hoc signed, which
