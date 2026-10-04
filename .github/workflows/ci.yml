@@ -31,6 +31,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: The tag has to match the version the binary reports
+        run: |
+          grep -q "let version = \"${GITHUB_REF_NAME#v}\"" Sources/pdf-ocr/main.swift || {
+            echo "Sources/pdf-ocr/main.swift does not say ${GITHUB_REF_NAME#v}"
+            exit 1
+          }
+
       - name: Build and package
         run: Scripts/build-release.sh --version "${GITHUB_REF_NAME#v}" --zip
 

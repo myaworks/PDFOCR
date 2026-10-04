@@ -2,7 +2,10 @@ import Foundation
 import PDFOCRKit
 
 let tool = "pdf-ocr"
-let version = "1.0.0"
+/// The Homebrew formula matches its `brew test` output against this, and the
+/// release workflow refuses to publish a tag whose number does not match, so
+/// this cannot drift away from the published version.
+let version = "1.2.0"
 
 struct Usage: Error, CustomStringConvertible {
     var description: String { Self.text }
