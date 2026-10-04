@@ -82,12 +82,14 @@ codesign --force --deep --sign - dist/PDFOCR.app
 if [ "$MAKE_ZIP" = "1" ]; then
     echo "==> packaging"
     tar -czf dist/pdf-ocr-macos-universal.tar.gz -C dist pdf-ocr
-    tar -czf dist/PDFOCR-macos.zip -C dist PDFOCR.app
+    # ditto, not tar: a .app has to keep its symlinks and extended attributes,
+    # and a gzipped tar wearing a .zip name is not a zip at all.
+    ditto -c -k --sequesterRsrc --keepParent dist/PDFOCR.app dist/PDFOCR-macos.zip
 fi
 
 echo
 echo "built, version $VERSION"
 echo "    dist/pdf-ocr            $(lipo -archs dist/pdf-ocr)"
 echo "    dist/PDFOCR.app         open dist/PDFOCR.app"
-[ "$MAKE_ZIP" = "1" ] && ls -1 dist/*.zip dist/*.tar.gz 2>/dev/null | sed 's/^/    /'
+[ "$MAKE_ZIP" = "1" ] && ls -1 dist/PDFOCR-macos.zip dist/pdf-ocr-macos-universal.tar.gz 2>/dev/null | sed 's/^/    /'
 exit 0
