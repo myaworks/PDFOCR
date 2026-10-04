@@ -14,15 +14,25 @@ macOS 26 or newer. Swift, no third-party dependencies.
 
 ## Install
 
+With Homebrew, from the tap:
+
+```sh
+brew install myaworks/tap/pdf-ocr
+```
+
+Or download `pdf-ocr` from the [releases page](https://github.com/myaworks/PDFOCR/releases)
+and drop it somewhere on your PATH. Or build it:
+
 ```sh
 git clone https://github.com/myaworks/PDFOCR
 cd PDFOCR
 swift build -c release
-cp .build/release/pdf-ocr /usr/local/bin/   # needs sudo, or any dir on PATH
+cp .build/out/Products/Release/pdf-ocr /usr/local/bin/   # needs sudo, or any dir on PATH
 ```
 
-Or grab `pdf-ocr` from the [releases page](https://github.com/myaworks/PDFOCR/releases)
-and drop it somewhere on your PATH.
+The Homebrew formula installs the released universal binary rather than
+building, so no toolchain is needed. It needs macOS 26 or newer, like
+everything else here.
 
 ### The app
 
