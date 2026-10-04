@@ -68,6 +68,8 @@ mkdir -p dist/PDFOCR.app/Contents/MacOS
 
 cp "$BIN/pdf-ocr" dist/pdf-ocr
 cp "$BIN/PDFOCR" dist/PDFOCR.app/Contents/MacOS/PDFOCR
+mkdir -p dist/PDFOCR.app/Contents/Resources
+cp Resources/AppIcon.icns dist/PDFOCR.app/Contents/Resources/AppIcon.icns
 cp Resources/Info.plist dist/PDFOCR.app/Contents/Info.plist
 
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" dist/PDFOCR.app/Contents/Info.plist

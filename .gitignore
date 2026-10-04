@@ -10,3 +10,4 @@ DerivedData/
 /dist/
 PDFOCR.app/
 *.tar.gz
+Resources/*.iconset/

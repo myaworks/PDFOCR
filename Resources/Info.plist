@@ -6,6 +6,8 @@
 	<string>PDFOCR</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.myaworks.pdfocr</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleName</key>
 	<string>PDFOCR</string>
 	<key>CFBundleDisplayName</key>
